@@ -12,6 +12,7 @@
 [ext_resource type="Texture2D" uid="uid://dllb3lkwcsggn" path="res://Tiled_files/doors_lever_chest_animation.png" id="10_d3jp0"]
 [ext_resource type="Texture2D" uid="uid://dbqa3thbgfdkr" path="res://Tiled_files/Objects.png" id="11_f2gy7"]
 [ext_resource type="PackedScene" uid="uid://gg00k7v2n4s0" path="res://Tiled_files/player.tscn" id="12_7rki1"]
+[ext_resource type="PackedScene" path="res://Tiled_files/map_portal.tscn" id="13_portal"]
 
 [sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_1rkfl"]
 texture = ExtResource("1_yfpq7")
@@ -3382,3 +3383,6 @@ tile_set = SubResource("TileSet_lfk6f")
 
 [node name="Player" parent="." unique_id=450160347 instance=ExtResource("12_7rki1")]
 position = Vector2(-190, 86)
+
+[node name="MapPortal" parent="." instance=ExtResource("13_portal")]
+position = Vector2(-120, 86)

@@ -22,6 +22,9 @@ texture = ExtResource("1_ktuiv")
 position = Vector2(580, 363)
 scale = Vector2(1.5, 1.5)
 
+[node name="Camera2D" parent="Player" index="2"]
+zoom = Vector2(2, 2)
+
 [node name="StaticBody2D" type="StaticBody2D" parent="." unique_id=172972943]
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="StaticBody2D" unique_id=376847381]
