@@ -41,11 +41,8 @@ scale = Vector2(0.6183036, 0.6119792)
 texture = ExtResource("1_nl4m4")
 
 [node name="Player" parent="." unique_id=450160347 instance=ExtResource("2_cpxtv")]
-position = Vector2(224, 259)
+position = Vector2(140, 228)
 scale = Vector2(1, 1)
-
-[node name="Camera2D" parent="Player" index="2"]
-zoom = Vector2(2, 2)
 
 [node name="StaticBody2D" type="StaticBody2D" parent="." unique_id=644628951]
 

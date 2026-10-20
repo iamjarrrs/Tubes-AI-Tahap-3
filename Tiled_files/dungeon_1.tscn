@@ -3384,5 +3384,5 @@ tile_set = SubResource("TileSet_lfk6f")
 [node name="Player" parent="." unique_id=450160347 instance=ExtResource("12_7rki1")]
 position = Vector2(-190, 86)
 
-[node name="MapPortal" parent="." instance=ExtResource("13_portal")]
+[node name="MapPortal" parent="." unique_id=593832680 instance=ExtResource("13_portal")]
 position = Vector2(-120, 86)

@@ -1,0 +1,132 @@
+[gd_scene load_steps=7 format=3]
+
+[ext_resource type="Script" path="res://scripts/element_selection_ui.gd" id="1_script"]
+[ext_resource type="Texture2D" path="res://map/map_aqua.jpg" id="2_sea"]
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_panel"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_fire"]
+bg_color = Color(0.12, 0.15, 0.16, 1)
+border_color = Color(0.85, 0.47, 0.27, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+corner_radius_top_left = 8
+corner_radius_top_right = 8
+corner_radius_bottom_right = 8
+corner_radius_bottom_left = 8
+content_margin_left = 18.0
+content_margin_top = 18.0
+content_margin_right = 18.0
+content_margin_bottom = 18.0
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_water"]
+bg_color = Color(0.12, 0.15, 0.16, 1)
+border_color = Color(0.29, 0.57, 0.72, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+corner_radius_top_left = 8
+corner_radius_top_right = 8
+corner_radius_bottom_right = 8
+corner_radius_bottom_left = 8
+content_margin_left = 18.0
+content_margin_top = 18.0
+content_margin_right = 18.0
+content_margin_bottom = 18.0
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_nature"]
+bg_color = Color(0.12, 0.15, 0.16, 1)
+border_color = Color(0.42, 0.61, 0.38, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+corner_radius_top_left = 8
+corner_radius_top_right = 8
+corner_radius_bottom_right = 8
+corner_radius_bottom_left = 8
+content_margin_left = 18.0
+content_margin_top = 18.0
+content_margin_right = 18.0
+content_margin_bottom = 18.0
+
+[node name="ElementSelectionUI" type="CanvasLayer"]
+layer = 10
+script = ExtResource("1_script")
+
+[node name="MapBackground" type="TextureRect" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+texture = ExtResource("2_sea")
+expand_mode = 1
+stretch_mode = 6
+modulate = Color(1, 1, 1, 0.62)
+
+[node name="Backdrop" type="ColorRect" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+color = Color(0.043, 0.055, 0.059, 0.48)
+
+[node name="CenterContainer" type="CenterContainer" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="PanelContainer" type="PanelContainer" parent="CenterContainer"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_styles/panel = SubResource("StyleBoxEmpty_panel")
+
+[node name="Content" type="VBoxContainer" parent="CenterContainer/PanelContainer"]
+theme_override_constants/separation = 24
+mouse_filter = 2
+
+[node name="Title" type="Label" parent="CenterContainer/PanelContainer/Content"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.94, 0.91, 0.82, 1)
+theme_override_font_sizes/font_size = 34
+text = "PILIH ELEMEN"
+horizontal_alignment = 1
+
+[node name="ElementCards" type="HBoxContainer" parent="CenterContainer/PanelContainer/Content"]
+layout_mode = 2
+theme_override_constants/separation = 18
+alignment = 1
+
+[node name="Fire" type="Button" parent="CenterContainer/PanelContainer/Content/ElementCards"]
+custom_minimum_size = Vector2(230, 300)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.96, 0.94, 0.89, 1)
+theme_override_font_sizes/font_size = 25
+theme_override_styles/normal = SubResource("StyleBoxFlat_fire")
+text = "Fire"
+
+[node name="Water" type="Button" parent="CenterContainer/PanelContainer/Content/ElementCards"]
+custom_minimum_size = Vector2(230, 300)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.96, 0.94, 0.89, 1)
+theme_override_font_sizes/font_size = 25
+theme_override_styles/normal = SubResource("StyleBoxFlat_water")
+text = "Water"
+
+[node name="Nature" type="Button" parent="CenterContainer/PanelContainer/Content/ElementCards"]
+custom_minimum_size = Vector2(230, 300)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.96, 0.94, 0.89, 1)
+theme_override_font_sizes/font_size = 25
+theme_override_styles/normal = SubResource("StyleBoxFlat_nature")
+text = "Nature"

@@ -1,0 +1,81 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/versus_preview_ui.gd" id="1_script"]
+
+[node name="VersusPreviewUI" type="CanvasLayer"]
+layer = 10
+script = ExtResource("1_script")
+
+[node name="MapBackground" type="TextureRect" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+expand_mode = 1
+stretch_mode = 6
+modulate = Color(1, 1, 1, 0.62)
+
+[node name="Backdrop" type="ColorRect" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+color = Color(0.043, 0.055, 0.059, 0.48)
+
+[node name="CenterContainer" type="CenterContainer" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="PanelContainer" type="PanelContainer" parent="CenterContainer"]
+layout_mode = 2
+mouse_filter = 2
+
+[node name="Content" type="VBoxContainer" parent="CenterContainer/PanelContainer"]
+theme_override_constants/separation = 8
+mouse_filter = 2
+
+[node name="Title" type="Label" parent="CenterContainer/PanelContainer/Content"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.94, 0.91, 0.82, 1)
+theme_override_font_sizes/font_size = 32
+text = "LOADOUT VS"
+horizontal_alignment = 1
+
+[node name="NPCName" type="Label" parent="CenterContainer/PanelContainer/Content"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.96, 0.94, 0.89, 1)
+theme_override_font_sizes/font_size = 20
+text = "NPC"
+horizontal_alignment = 1
+
+[node name="NPCCards" type="HBoxContainer" parent="CenterContainer/PanelContainer/Content"]
+layout_mode = 2
+theme_override_constants/separation = 14
+alignment = 1
+
+[node name="StatsLabel" type="Label" parent="CenterContainer/PanelContainer/Content"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.96, 0.77, 0.43, 1)
+theme_override_font_sizes/font_size = 19
+text = "MC ATK 0 | DEF 0 VS NPC ATK 0 | DEF 0"
+horizontal_alignment = 1
+
+[node name="MCName" type="Label" parent="CenterContainer/PanelContainer/Content"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.96, 0.94, 0.89, 1)
+theme_override_font_sizes/font_size = 20
+text = "MC"
+horizontal_alignment = 1
+
+[node name="MCCards" type="HBoxContainer" parent="CenterContainer/PanelContainer/Content"]
+layout_mode = 2
+theme_override_constants/separation = 14
+alignment = 1

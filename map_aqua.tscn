@@ -38,11 +38,8 @@ scale = Vector2(0.8511904, 0.84244794)
 texture = ExtResource("1_r0k8f")
 
 [node name="Player" parent="." unique_id=450160347 instance=ExtResource("2_rrlfo")]
-position = Vector2(368, 282)
+position = Vector2(202, 333)
 scale = Vector2(1.5, 1.5)
-
-[node name="Camera2D" parent="Player" index="2"]
-zoom = Vector2(2, 2)
 
 [node name="StaticBody2D" type="StaticBody2D" parent="." unique_id=1042436779]
 position = Vector2(573, 324)
