@@ -135,9 +135,7 @@ func _on_item_selected(item_name: String) -> void:
 	game_state.call("replace_draft_ui", self, next_scene_path)
 
 func _make_item_data(item_name: String) -> Dictionary:
-	if item_name == "None":
-		return {"name": "None", "power": 0, "defense": 0, "element": "Any"}
 	for item in game_state.call("get_item_catalog", category):
 		if item["name"] == item_name:
 			return item.duplicate(true)
-	return {"name": item_name, "power": 0, "defense": 0, "element": "Any"}
+	return {"name": item_name, "atk": 0, "power": 0, "def": 0, "defense": 0, "weight": 0, "element": "Neutral"}

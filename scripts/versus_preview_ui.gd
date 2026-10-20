@@ -6,8 +6,33 @@ extends CanvasLayer
 
 func _ready() -> void:
 	_set_map_background()
-	var mc_loadout: Dictionary = game_state.get("mc_loadout")
-	var npc_loadout: Dictionary = game_state.get("npc_loadout")
+
+	# 1. Ambil loadout MC
+	var mc_loadout_variant = game_state.mc_loadout if "mc_loadout" in game_state else {}
+	var mc_loadout: Dictionary = mc_loadout_variant if mc_loadout_variant is Dictionary else {}
+
+	var mc_stats := _total_stats(mc_loadout)
+	var mc_power: float = float(mc_stats["attack"] + mc_stats["defense"])
+
+	# Buka output ini untuk membuktikan angka MC Power sebenarnya di Console
+	print("--- DEBUG DDA ---")
+	print("MC Power Terhitung: ", mc_power)
+
+	# 3. Jalankan AI Loadout
+	var mc_elem := str(mc_loadout.get("element", "Fire"))
+	if mc_elem.is_empty():
+		mc_elem = "Fire"
+	var npc_source_variant = game_state.npc_loadout if "npc_loadout" in game_state else {}
+	var npc_source: Dictionary = npc_source_variant if npc_source_variant is Dictionary else {}
+	var npc_elem := str(npc_source.get("element", "Water"))
+	if npc_elem.is_empty():
+		npc_elem = "Water"
+	var npc_loadout: Dictionary = AILoadoutManager.run_simulated_annealing(mc_power, mc_elem, npc_elem)
+
+	# 4. Simpan hasil AI ke game_state
+	game_state["npc_loadout"] = npc_loadout
+
+	# 5. Tampilkan ke UI
 	_add_loadout_cards(mc_cards, mc_loadout)
 	_add_loadout_cards(npc_cards, npc_loadout)
 	$CenterContainer/PanelContainer/Content/StatsLabel.text = _make_stats_text(mc_loadout, npc_loadout)
@@ -38,9 +63,12 @@ func _total_stats(loadout: Dictionary) -> Dictionary:
 	var totals := {"attack": 0, "defense": 0}
 	for category in ["weapon", "armor", "accessory"]:
 		var item: Dictionary = loadout.get(category, {})
-		totals["attack"] += int(item.get("power", 0))
-		totals["defense"] += int(item.get("defense", 0))
+		totals["attack"] += _item_stat(item, "atk", "power")
+		totals["defense"] += _item_stat(item, "def", "defense")
 	return totals
+
+func _item_stat(item: Dictionary, primary_key: String, fallback_key: String) -> int:
+	return int(item.get(primary_key, item.get(fallback_key, 0)))
 
 func _add_card(container: HBoxContainer, category: String, item_name: String) -> void:
 	var card := PanelContainer.new()

@@ -3,22 +3,23 @@ extends Node
 const ELEMENTS: Array[String] = ["Fire", "Water", "Nature"]
 const ITEM_CATALOG := {
 	"weapon": [
-		{"name": "Dagger", "power": 3, "defense": 0, "element": "Any"},
-		{"name": "Flame Sword", "power": 7, "defense": 0, "element": "Fire"},
-		{"name": "Aqua Wand", "power": 5, "defense": 1, "element": "Water"},
-		{"name": "Leaf Blade", "power": 6, "defense": 1, "element": "Nature"}
+		{"name": "Dagger", "atk": 5, "power": 5, "def": 0, "defense": 0, "weight": 10, "element": "Neutral"},
+		{"name": "Flame Sword", "atk": 15, "power": 15, "def": 0, "defense": 0, "weight": 30, "element": "Fire"},
+		{"name": "Aqua Wand", "atk": 12, "power": 12, "def": 0, "defense": 0, "weight": 20, "element": "Water"},
+		{"name": "Leaf Blade", "atk": 14, "power": 14, "def": 0, "defense": 0, "weight": 25, "element": "Nature"}
 	],
 	"armor": [
-		{"name": "Leather Vest", "power": 0, "defense": 3, "element": "Any"},
-		{"name": "Flame Mail", "power": 1, "defense": 6, "element": "Fire"},
-		{"name": "Ocean Shield", "power": 0, "defense": 7, "element": "Water"},
-		{"name": "Forest Cloak", "power": 2, "defense": 4, "element": "Nature"}
+		{"name": "Leather Vest", "atk": 0, "power": 0, "def": 5, "defense": 5, "weight": 15, "element": "Neutral"},
+		{"name": "Flame Mail", "atk": 0, "power": 0, "def": 12, "defense": 12, "weight": 35, "element": "Fire"},
+		{"name": "Ocean Shield", "atk": 0, "power": 0, "def": 10, "defense": 10, "weight": 25, "element": "Water"},
+		{"name": "Forest Cloak", "atk": 0, "power": 0, "def": 8, "defense": 8, "weight": 20, "element": "Nature"}
 	],
 	"accessory": [
-		{"name": "Apothecary Charm", "power": 1, "defense": 1, "element": "Any"},
-		{"name": "Guardian Pendant", "power": 0, "defense": 4, "element": "Any"},
-		{"name": "Berserker Amulet", "power": 4, "defense": 0, "element": "Any"},
-		{"name": "Elemental Gem", "power": 3, "defense": 2, "element": "Any"}
+		{"name": "None", "atk": 0, "power": 0, "def": 0, "defense": 0, "weight": 0, "element": "Neutral"},
+		{"name": "Apothecary Charm", "atk": 2, "power": 2, "def": 3, "defense": 3, "weight": 15, "element": "Neutral"},
+		{"name": "Guardian Pendant", "atk": 0, "power": 0, "def": 5, "defense": 5, "weight": 20, "element": "Neutral"},
+		{"name": "Berserker Amulet", "atk": 10, "power": 10, "def": -5, "defense": -5, "weight": 25, "element": "Neutral"},
+		{"name": "Elemental Gem", "atk": 5, "power": 5, "def": 5, "defense": 5, "weight": 20, "element": "Neutral"}
 	]
 }
 
@@ -179,7 +180,7 @@ func choose_npc_loadout() -> void:
 func _compatible_items(category: String, element: String) -> Array[Dictionary]:
 	var compatible: Array[Dictionary] = []
 	for item in get_item_catalog(category):
-		if item["element"] == "Any" or item["element"] == element:
+		if item["element"] == "Neutral" or item["element"] == element:
 			compatible.append(item)
 	return compatible
 

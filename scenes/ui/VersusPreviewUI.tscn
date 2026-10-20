@@ -1,12 +1,13 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene format=3 uid="uid://db8hqf70n27dr"]
 
-[ext_resource type="Script" path="res://scripts/versus_preview_ui.gd" id="1_script"]
+[ext_resource type="Script" uid="uid://0a4oovt2p7i0" path="res://scripts/versus_preview_ui.gd" id="1_script"]
 
-[node name="VersusPreviewUI" type="CanvasLayer"]
+[node name="VersusPreviewUI" type="CanvasLayer" unique_id=2064082598]
 layer = 10
 script = ExtResource("1_script")
 
-[node name="MapBackground" type="TextureRect" parent="."]
+[node name="MapBackground" type="TextureRect" parent="." unique_id=581522512]
+modulate = Color(1, 1, 1, 0.62)
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
@@ -15,9 +16,8 @@ grow_vertical = 2
 mouse_filter = 2
 expand_mode = 1
 stretch_mode = 6
-modulate = Color(1, 1, 1, 0.62)
 
-[node name="Backdrop" type="ColorRect" parent="."]
+[node name="Backdrop" type="ColorRect" parent="." unique_id=172039356]
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
@@ -26,7 +26,7 @@ grow_vertical = 2
 mouse_filter = 2
 color = Color(0.043, 0.055, 0.059, 0.48)
 
-[node name="CenterContainer" type="CenterContainer" parent="."]
+[node name="CenterContainer" type="CenterContainer" parent="." unique_id=715164300]
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
@@ -34,48 +34,49 @@ grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
 
-[node name="PanelContainer" type="PanelContainer" parent="CenterContainer"]
+[node name="PanelContainer" type="PanelContainer" parent="CenterContainer" unique_id=737532953]
 layout_mode = 2
 mouse_filter = 2
 
-[node name="Content" type="VBoxContainer" parent="CenterContainer/PanelContainer"]
-theme_override_constants/separation = 8
+[node name="Content" type="VBoxContainer" parent="CenterContainer/PanelContainer" unique_id=1151113772]
+layout_mode = 2
 mouse_filter = 2
+theme_override_constants/separation = 8
 
-[node name="Title" type="Label" parent="CenterContainer/PanelContainer/Content"]
+[node name="Title" type="Label" parent="CenterContainer/PanelContainer/Content" unique_id=804490707]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.94, 0.91, 0.82, 1)
 theme_override_font_sizes/font_size = 32
 text = "LOADOUT VS"
 horizontal_alignment = 1
 
-[node name="NPCName" type="Label" parent="CenterContainer/PanelContainer/Content"]
+[node name="NPCName" type="Label" parent="CenterContainer/PanelContainer/Content" unique_id=1603104541]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.96, 0.94, 0.89, 1)
 theme_override_font_sizes/font_size = 20
 text = "NPC"
 horizontal_alignment = 1
 
-[node name="NPCCards" type="HBoxContainer" parent="CenterContainer/PanelContainer/Content"]
+[node name="NPCCards" type="HBoxContainer" parent="CenterContainer/PanelContainer/Content" unique_id=1974130932]
 layout_mode = 2
 theme_override_constants/separation = 14
 alignment = 1
 
-[node name="StatsLabel" type="Label" parent="CenterContainer/PanelContainer/Content"]
+[node name="StatsLabel" type="Label" parent="CenterContainer/PanelContainer/Content" unique_id=1513039177]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.96, 0.77, 0.43, 1)
 theme_override_font_sizes/font_size = 19
 text = "MC ATK 0 | DEF 0 VS NPC ATK 0 | DEF 0"
 horizontal_alignment = 1
 
-[node name="MCName" type="Label" parent="CenterContainer/PanelContainer/Content"]
+[node name="MCName" type="Label" parent="CenterContainer/PanelContainer/Content" unique_id=717875366]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.96, 0.94, 0.89, 1)
 theme_override_font_sizes/font_size = 20
 text = "MC"
 horizontal_alignment = 1
 
-[node name="MCCards" type="HBoxContainer" parent="CenterContainer/PanelContainer/Content"]
+[node name="MCCards" type="HBoxContainer" parent="CenterContainer/PanelContainer/Content" unique_id=1862864421]
 layout_mode = 2
 theme_override_constants/separation = 14
 alignment = 1

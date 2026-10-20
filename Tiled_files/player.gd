@@ -7,7 +7,7 @@ const RUN_SPEED = 200.0
 
 func _physics_process(_delta):
 	# Mengecek tombol Shift untuk lari
-	var is_running = Input.is_action_pressed("ui_shift") or Input.is_key_pressed(KEY_SHIFT)
+	var is_running = Input.is_key_pressed(KEY_SHIFT)
 	var current_speed = RUN_SPEED if is_running else WALK_SPEED
 
 	# Membaca input arah (WASD / Panah)
