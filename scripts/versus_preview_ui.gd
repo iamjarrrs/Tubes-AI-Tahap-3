@@ -11,12 +11,8 @@ func _ready() -> void:
 	var mc_loadout_variant = game_state.mc_loadout if "mc_loadout" in game_state else {}
 	var mc_loadout: Dictionary = mc_loadout_variant if mc_loadout_variant is Dictionary else {}
 
-	var mc_stats := _total_stats(mc_loadout)
-	var mc_power: float = float(mc_stats["attack"] + mc_stats["defense"])
-
-	# Buka output ini untuk membuktikan angka MC Power sebenarnya di Console
-	print("--- DEBUG DDA ---")
-	print("MC Power Terhitung: ", mc_power)
+	var mc_total_stats := _total_stats(mc_loadout, game_state.mc_base_stats)
+	var mc_power: float = float(mc_total_stats["attack"] + mc_total_stats["defense"])
 
 	# 3. Jalankan AI Loadout
 	var mc_elem := str(mc_loadout.get("element", "Fire"))
@@ -28,14 +24,35 @@ func _ready() -> void:
 	if npc_elem.is_empty():
 		npc_elem = "Water"
 	var npc_loadout: Dictionary = AILoadoutManager.run_simulated_annealing(mc_power, mc_elem, npc_elem)
+	npc_loadout["element"] = npc_elem
 
 	# 4. Simpan hasil AI ke game_state
 	game_state["npc_loadout"] = npc_loadout
 
 	# 5. Tampilkan ke UI
+	$CenterContainer/PanelContainer/Content/MCName.text = "MC  |  ELEMENT: " + mc_elem.to_upper()
+	$CenterContainer/PanelContainer/Content/NPCName.text = "NPC  |  ELEMENT: " + npc_elem.to_upper()
 	_add_loadout_cards(mc_cards, mc_loadout)
 	_add_loadout_cards(npc_cards, npc_loadout)
 	$CenterContainer/PanelContainer/Content/StatsLabel.text = _make_stats_text(mc_loadout, npc_loadout)
+	var start_button := Button.new()
+	start_button.text = "MULAI PERTARUNGAN"
+	start_button.custom_minimum_size = Vector2(240.0, 48.0)
+	start_button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	start_button.pressed.connect(_on_start_battle_pressed)
+	$CenterContainer/PanelContainer/Content.add_child(start_button)
+
+func _on_start_battle_pressed() -> void:
+	var battle_script := load("res://scripts/battle_ui.gd") as Script
+	if battle_script == null:
+		push_error("Could not load battle UI script.")
+		return
+	var battle_ui := battle_script.new() as CanvasLayer
+	if battle_ui == null:
+		push_error("Could not create battle UI.")
+		return
+	get_tree().root.add_child(battle_ui)
+	queue_free()
 
 func _set_map_background() -> void:
 	var selected_map: String = str(game_state.get("selected_map")).to_lower()
@@ -53,13 +70,21 @@ func _add_loadout_cards(container: HBoxContainer, loadout: Dictionary) -> void:
 		_add_card(container, category.capitalize(), item_name)
 
 func _make_stats_text(mc_loadout: Dictionary, npc_loadout: Dictionary) -> String:
-	var mc_stats := _total_stats(mc_loadout)
-	var npc_stats := _total_stats(npc_loadout)
-	return "MC   ATK %d  |  DEF %d       VS       NPC   ATK %d  |  DEF %d" % [
-		mc_stats["attack"], mc_stats["defense"], npc_stats["attack"], npc_stats["defense"]
+	var mc_stats := _total_stats(mc_loadout, game_state.mc_base_stats)
+	var npc_stats := _total_stats(npc_loadout, game_state.npc_base_stats)
+	return "MC [%s]  ATK %d  |  DEF %d\nNPC [%s]  ATK %d  |  DEF %d" % [
+		str(mc_loadout.get("element", "None")).to_upper(), mc_stats["attack"], mc_stats["defense"],
+		str(npc_loadout.get("element", "None")).to_upper(), npc_stats["attack"], npc_stats["defense"]
 	]
 
-func _total_stats(loadout: Dictionary) -> Dictionary:
+func _total_stats(loadout: Dictionary, base_stats: Dictionary) -> Dictionary:
+	var totals := {"attack": int(base_stats.get("attack", 0)), "defense": int(base_stats.get("defense", 0))}
+	var equipment_stats := _equipment_stats(loadout)
+	totals["attack"] += equipment_stats["attack"]
+	totals["defense"] += equipment_stats["defense"]
+	return totals
+
+func _equipment_stats(loadout: Dictionary) -> Dictionary:
 	var totals := {"attack": 0, "defense": 0}
 	for category in ["weapon", "armor", "accessory"]:
 		var item: Dictionary = loadout.get(category, {})

@@ -24,6 +24,8 @@ const ITEM_CATALOG := {
 }
 
 var selected_map: String = ""
+var mc_base_stats: Dictionary = {"attack": 30, "defense": 0}
+var npc_base_stats: Dictionary = {"attack": 30, "defense": 0}
 var mc_loadout: Dictionary = {
 	"element": "",
 	"weapon": {},
@@ -69,7 +71,7 @@ func start_map_draft(map_name: String, scene_path: String) -> void:
 		return
 	await get_tree().process_frame
 
-	var map_scene := get_tree().current_scene
+	var map_scene := get_tree().current_scene as Node2D
 	if map_scene == null:
 		push_error("No active map scene after scene transition.")
 		return
@@ -79,27 +81,60 @@ func start_map_draft(map_name: String, scene_path: String) -> void:
 	else:
 		push_error("Selected map has no Player node; cannot start NPC pathfinding.")
 		return
+	var map_sprite := _get_map_background(map_scene)
+	var camera := player.get_node_or_null("Camera2D") as Camera2D
+	if camera:
+		camera.zoom = Vector2.ONE
+		if map_sprite:
+			camera.global_position = map_sprite.global_position
 
 	var npc := load("res://Tiled_files/npc.tscn").instantiate() as CharacterBody2D
 	if npc == null:
 		push_error("Could not instantiate NPC scene.")
 		return
 	npc.name = "BattleNPC"
-	npc.global_position = player.global_position + Vector2(112.0, 0.0)
+	npc.scale = player.scale
 	map_scene.add_child(npc)
+	var debug_overlay := load("res://scripts/gameplay_debug_overlay.gd").new() as CanvasLayer
+	debug_overlay.name = "GameplayDebugOverlay"
+	map_scene.add_child(debug_overlay)
+	npc.global_position = npc.call("find_spawn_position", player.global_position)
+	player.set_physics_process(true)
 	await get_tree().process_frame
 
 	var elapsed := 0.0
-	while elapsed < 3.0 and npc.global_position.distance_to(player.global_position) > 24.0:
+	var approach_timeout := 60.0
+	while elapsed < approach_timeout and npc.global_position.distance_to(player.global_position) > 32.0:
 		await get_tree().create_timer(0.1).timeout
 		elapsed += 0.1
+	if npc.global_position.distance_to(player.global_position) > 32.0:
+		push_error("NPC gagal mencapai player sebelum batas waktu; kartu draft tidak ditampilkan.")
+		return
+	player.velocity = Vector2.ZERO
+	player.set_physics_process(false)
 	npc.set_physics_process(false)
 
 	var element_ui := _instantiate_draft_ui("res://scenes/ui/ElementSelectionUI.tscn") as CanvasLayer
 	if element_ui == null:
 		return
-	element_ui.layer = 110
-	map_scene.add_child(element_ui)
+	element_ui.layer = 200
+	get_tree().root.add_child(element_ui)
+
+func _get_map_background(map_scene: Node2D) -> Sprite2D:
+	for child in map_scene.get_children():
+		if child is Sprite2D and child.texture:
+			return child as Sprite2D
+	return null
+
+func _get_npc_spawn_position(map_scene: Node2D, player: Node2D) -> Vector2:
+	var map_sprite := _get_map_background(map_scene)
+	if map_sprite:
+		var map_size := Vector2(map_sprite.texture.get_size()) * map_sprite.global_scale
+		var map_right := map_sprite.global_position.x + map_size.x * 0.5
+		var map_top := map_sprite.global_position.y - map_size.y * 0.5
+		var map_bottom := map_sprite.global_position.y + map_size.y * 0.5
+		return Vector2(map_right - 64.0, clampf(player.global_position.y, map_top + 64.0, map_bottom - 64.0))
+	return player.global_position + Vector2(640.0, 0.0)
 
 func replace_draft_ui(current_ui: Node, scene_path: String) -> void:
 	var next_ui := _instantiate_draft_ui(scene_path)

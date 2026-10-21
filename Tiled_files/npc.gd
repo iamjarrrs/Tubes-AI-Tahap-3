@@ -1,16 +1,18 @@
 extends CharacterBody2D
 
-const SPEED = 45.0
+const SPEED = 220.0
 var player: Node2D = null
 var astar_grid := AStarGrid2D.new()
-@export var tile_size := 16 
+@export var tile_size := 16
+var grid_origin := Vector2.ZERO
 var current_path: PackedVector2Array = []
 var path_index := 0
+var last_target_id := Vector2i(2147483647, 2147483647)
+var needs_repath := true
 
 @onready var anim: AnimatedSprite2D = $AnimatedSprite2D
 
 func _ready():
-	await get_tree().process_frame
 	player = get_tree().get_first_node_in_group("player")
 	if not player:
 		player = get_tree().current_scene.find_child("Player", true, false)
@@ -18,55 +20,148 @@ func _ready():
 	setup_astar()
 
 func setup_astar():
-	astar_grid.region = Rect2i(-200, -200, 400, 400)
+	var map_sprite := _get_map_background()
+	if map_sprite:
+		var map_size := Vector2(map_sprite.texture.get_size()) * map_sprite.global_scale
+		grid_origin = map_sprite.global_position - map_size * 0.5
+		var grid_width := ceili(map_size.x / tile_size)
+		var grid_height := ceili(map_size.y / tile_size)
+		astar_grid.region = Rect2i(0, 0, grid_width, grid_height)
+		astar_grid.offset = grid_origin + Vector2(tile_size, tile_size) * 0.5
+	else:
+		astar_grid.region = Rect2i(-200, -200, 400, 400)
+		grid_origin = Vector2(-200.0, -200.0) * tile_size
+		astar_grid.offset = grid_origin + Vector2(tile_size, tile_size) * 0.5
 	astar_grid.cell_size = Vector2(tile_size, tile_size)
 	astar_grid.diagonal_mode = AStarGrid2D.DIAGONAL_MODE_NEVER
 	astar_grid.update()
-	
-	# Memindai node Walls agar dihindari oleh algoritma A*
-	var dungeon_map = get_parent()
-	if dungeon_map:
-		var walls_node = dungeon_map.find_child("Walls", true, false)
-		if walls_node:
-			var cells = []
-			# Mendukung TileMapLayer maupun TileMap konvensional di Godot 4
-			if walls_node.has_method("get_used_cells"):
-				if walls_node is TileMapLayer:
-					cells = walls_node.get_used_cells()
-				elif walls_node is TileMap:
-					for i in walls_node.get_layers_count():
-						cells.append_array(walls_node.get_used_cells(i))
-			
-			for cell in cells:
-				astar_grid.set_point_solid(cell, true)
+
+	var collision_shapes := get_tree().current_scene.find_children("*", "CollisionShape2D", true, false)
+	for collision_shape in collision_shapes:
+		if collision_shape.get_parent() is StaticBody2D:
+			_mark_collision_shape_solid(collision_shape as CollisionShape2D)
+
+func _get_map_background() -> Sprite2D:
+	var map_scene := get_parent()
+	for child in map_scene.get_children():
+		if child is Sprite2D and child.texture:
+			return child as Sprite2D
+	return null
+
+func _mark_collision_shape_solid(collision_shape: CollisionShape2D) -> void:
+	if collision_shape.disabled or collision_shape.shape == null:
+		return
+	var rect := collision_shape.shape.get_rect()
+	var local_corners := [rect.position, Vector2(rect.end.x, rect.position.y), rect.end, Vector2(rect.position.x, rect.end.y)]
+	var world_corners: Array[Vector2] = []
+	for corner in local_corners:
+		world_corners.append(collision_shape.to_global(corner))
+
+	var min_x := world_corners[0].x
+	var max_x := world_corners[0].x
+	var min_y := world_corners[0].y
+	var max_y := world_corners[0].y
+	for point in world_corners:
+		min_x = minf(min_x, point.x)
+		max_x = maxf(max_x, point.x)
+		min_y = minf(min_y, point.y)
+		max_y = maxf(max_y, point.y)
+
+	var clearance := tile_size * 0.75
+	min_x -= clearance
+	max_x += clearance
+	min_y -= clearance
+	max_y += clearance
+	var first_cell := _world_to_grid_id(Vector2(min_x, min_y))
+	var last_cell := _world_to_grid_id(Vector2(max_x, max_y))
+	var region := astar_grid.region
+	for cell_x in range(first_cell.x, last_cell.x + 1):
+		for cell_y in range(first_cell.y, last_cell.y + 1):
+			var cell_id := Vector2i(cell_x, cell_y)
+			if cell_id.x < region.position.x or cell_id.x >= region.end.x:
+				continue
+			if cell_id.y < region.position.y or cell_id.y >= region.end.y:
+				continue
+			var cell_center := astar_grid.get_point_position(cell_id)
+			if cell_center.x >= min_x and cell_center.x <= max_x and cell_center.y >= min_y and cell_center.y <= max_y:
+				astar_grid.set_point_solid(cell_id, true)
+
+func _world_to_grid_id(position: Vector2) -> Vector2i:
+	var map_local_position := position - grid_origin
+	return Vector2i(floori(map_local_position.x / tile_size), floori(map_local_position.y / tile_size))
+
+func find_spawn_position(target_position: Vector2) -> Vector2:
+	var target_id := _find_nearest_walkable_id(_world_to_grid_id(target_position))
+	var region := astar_grid.region
+	var map_sprite := _get_map_background()
+	var desired_position := target_position + Vector2(480.0, 0.0)
+	if map_sprite:
+		var map_size := Vector2(map_sprite.texture.get_size()) * map_sprite.global_scale
+		var map_left := map_sprite.global_position.x - map_size.x * 0.5
+		var map_right := map_sprite.global_position.x + map_size.x * 0.5
+		var map_center_y := map_sprite.global_position.y
+		desired_position = Vector2(lerpf(map_left, map_right, 0.78), map_center_y)
+
+	var desired_id := _world_to_grid_id(desired_position)
+	for radius in range(0, 16):
+		var best_position := Vector2.ZERO
+		var best_distance := INF
+		for offset_x in range(-radius, radius + 1):
+			for offset_y in range(-radius, radius + 1):
+				if radius > 0 and absi(offset_x) != radius and absi(offset_y) != radius:
+					continue
+				var candidate_id := desired_id + Vector2i(offset_x, offset_y)
+				if candidate_id.x < region.position.x or candidate_id.x >= region.end.x:
+					continue
+				if candidate_id.y < region.position.y or candidate_id.y >= region.end.y:
+					continue
+				if astar_grid.is_point_solid(candidate_id):
+					continue
+				var candidate_position := astar_grid.get_point_position(candidate_id)
+				var candidate_distance := candidate_position.distance_squared_to(desired_position)
+				if candidate_distance >= best_distance:
+					continue
+				if not astar_grid.get_id_path(candidate_id, target_id).is_empty():
+					best_distance = candidate_distance
+					best_position = candidate_position
+		if best_distance < INF:
+			return best_position
+	return desired_position
 
 func _physics_process(_delta):
 	if not player:
 		return
 
-	var start_id = Vector2i(round(global_position / tile_size))
-	var target_id = Vector2i(round(player.global_position / tile_size))
-	
-	current_path = astar_grid.get_point_path(start_id, target_id)
-	queue_redraw()
+	var target_id := _find_nearest_walkable_id(_world_to_grid_id(player.global_position))
+	if needs_repath or target_id != last_target_id or current_path.is_empty():
+		last_target_id = target_id
+		path_index = 0
+		var start_id := _world_to_grid_id(global_position)
+		if astar_grid.is_point_solid(start_id):
+			start_id = _find_nearest_walkable_id(start_id)
+		current_path = astar_grid.get_point_path(start_id, target_id)
+		needs_repath = false
+		queue_redraw()
 
 	var direction = Vector2.ZERO
 
 	if current_path.size() > 0:
-		if path_index >= current_path.size():
-			path_index = current_path.size() - 1
-		
-		var target_point = current_path[path_index]
-		
-		# Pindah ke titik checkpoint berikutnya jika sudah mendekati titik saat ini
-		if global_position.distance_to(target_point) < 4.0 and path_index < current_path.size() - 1:
+		while path_index < current_path.size() - 1 and global_position.distance_to(current_path[path_index]) < maxf(5.0, SPEED * _delta * 1.5):
 			path_index += 1
-			target_point = current_path[path_index]
-			
-		direction = global_position.direction_to(target_point)
+		var waypoint := current_path[path_index]
+		var distance_to_waypoint := global_position.distance_to(waypoint)
+		if distance_to_waypoint <= SPEED * _delta:
+			global_position = waypoint
+			if path_index < current_path.size() - 1:
+				path_index += 1
+				waypoint = current_path[path_index]
+			distance_to_waypoint = global_position.distance_to(waypoint)
+		direction = global_position.direction_to(waypoint)
+		queue_redraw()
 	else:
-		direction = global_position.direction_to(player.global_position)
-		path_index = 0
+		velocity = Vector2.ZERO
+		anim.stop()
+		return
 
 	velocity = direction * SPEED
 	
@@ -76,6 +171,33 @@ func _physics_process(_delta):
 		anim.stop()
 
 	move_and_slide()
+	if get_slide_collision_count() > 0:
+		var blocked_id := _world_to_grid_id(global_position + direction * tile_size)
+		var region := astar_grid.region
+		if blocked_id.x >= region.position.x and blocked_id.x < region.end.x and blocked_id.y >= region.position.y and blocked_id.y < region.end.y:
+			astar_grid.set_point_solid(blocked_id, true)
+		needs_repath = true
+		current_path.clear()
+		velocity = Vector2.ZERO
+		queue_redraw()
+
+func _find_nearest_walkable_id(origin: Vector2i) -> Vector2i:
+	var region := astar_grid.region
+	if origin.x >= region.position.x and origin.x < region.end.x and origin.y >= region.position.y and origin.y < region.end.y and not astar_grid.is_point_solid(origin):
+		return origin
+	for radius in range(1, 8):
+		for offset_x in range(-radius, radius + 1):
+			for offset_y in range(-radius, radius + 1):
+				if absi(offset_x) != radius and absi(offset_y) != radius:
+					continue
+				var candidate := origin + Vector2i(offset_x, offset_y)
+				if candidate.x < region.position.x or candidate.x >= region.end.x:
+					continue
+				if candidate.y < region.position.y or candidate.y >= region.end.y:
+					continue
+				if not astar_grid.is_point_solid(candidate):
+					return candidate
+	return origin
 
 func update_npc_animation(direction: Vector2):
 	if abs(direction.y) >= abs(direction.x):
@@ -99,9 +221,11 @@ func update_npc_animation(direction: Vector2):
 
 # Debug Overlay Grid A*
 func _draw():
-	for point in current_path:
-		var local_point = point - global_position
-		var rect = Rect2(local_point - Vector2(tile_size / 2.0, tile_size / 2.0), Vector2(tile_size, tile_size))
+	var draw_size := Vector2(tile_size, tile_size) / global_scale
+	for path_point_index in range(path_index, current_path.size()):
+		var point := current_path[path_point_index]
+		var local_point = to_local(point)
+		var rect = Rect2(local_point - draw_size * 0.5, draw_size)
 		
 		draw_rect(rect, Color(0, 0.8, 1, 0.3), true)
 		draw_rect(rect, Color(0, 0.4, 1, 0.8), false)
