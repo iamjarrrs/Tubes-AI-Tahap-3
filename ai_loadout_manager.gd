@@ -20,11 +20,11 @@ const ARMORS = [
 ]
 
 const ACCESSORIES = [
-	{"name": "None", "atk": 0, "power": 0, "def": 0, "defense": 0, "weight": 0, "element": "Neutral"},
-	{"name": "Apothecary Charm", "atk": 2, "power": 2, "def": 3, "defense": 3, "weight": 15, "element": "Neutral"},
-	{"name": "Elemental Gem", "atk": 5, "power": 5, "def": 5, "defense": 5, "weight": 20, "element": "Neutral"},
-	{"name": "Guardian Pendant", "atk": 0, "power": 0, "def": 5, "defense": 5, "weight": 20, "element": "Neutral"},
-	{"name": "Berserker Amulet", "atk": 10, "power": 10, "def": -5, "defense": -5, "weight": 25, "element": "Neutral"}
+	{"name": "None", "atk": 0, "power": 0, "def": 0, "defense": 0, "weight": 0, "hp": 0, "element": "Neutral"},
+	{"name": "Apothecary Charm", "atk": 2, "power": 2, "def": 3, "defense": 3, "weight": 15, "hp": 0, "element": "Neutral"},
+	{"name": "Elemental Gem", "atk": 5, "power": 5, "def": 5, "defense": 5, "weight": 20, "hp": 0, "element": "Neutral"},
+	{"name": "Guardian Pendant", "atk": 0, "power": 0, "def": 0, "defense": 0, "weight": 20, "hp": 0, "damage_reduction": 10, "element": "Neutral"},
+	{"name": "Berserker Amulet", "atk": 10, "power": 10, "def": -5, "defense": -5, "weight": 25, "hp": 0, "element": "Neutral"}
 ]
 
 # =========================================================
@@ -71,7 +71,7 @@ func calculate_power(w: Dictionary, a: Dictionary, acc: Dictionary, npc_elem: St
 		 (npc_elem == "Fire" and mc_elem == "Water"):
 		mult = 0.85
 		
-	return (base_atk * mult) + base_def
+	return (base_atk * mult) + base_def + float(acc.get("hp", 0)) * 0.5 + float(acc.get("damage_reduction", 0)) * 0.5
 
 func evaluate_fitness(combination: Dictionary, npc_elem: String, mc_power: float, mc_elem: String) -> float:
 	var npc_power = calculate_power(combination["weapon"], combination["armor"], combination["accessory"], npc_elem, mc_elem)

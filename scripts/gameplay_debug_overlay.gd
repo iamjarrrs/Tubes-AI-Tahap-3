@@ -39,7 +39,7 @@ func _refresh_text() -> void:
 		"GAMEPLAY DEBUG  [F3]",
 		"FPS: %d" % Engine.get_frames_per_second(),
 		"AI: CSP + Simulated Annealing",
-		"Minimax: not implemented in project"
+		"NPC battle policy: Minimax (depth 2)"
 	]
 	var player := get_tree().get_first_node_in_group("player") as Node2D
 	var npc := get_tree().current_scene.get_node_or_null("BattleNPC") as Node2D

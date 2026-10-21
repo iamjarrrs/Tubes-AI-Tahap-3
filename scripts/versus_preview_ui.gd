@@ -12,7 +12,7 @@ func _ready() -> void:
 	var mc_loadout: Dictionary = mc_loadout_variant if mc_loadout_variant is Dictionary else {}
 
 	var mc_total_stats := _total_stats(mc_loadout, game_state.mc_base_stats)
-	var mc_power: float = float(mc_total_stats["attack"] + mc_total_stats["defense"])
+	var mc_power: float = float(mc_total_stats["attack"] + mc_total_stats["defense"] + (mc_total_stats["hp"] - int(game_state.mc_base_stats.get("hp", 100))) * 0.5)
 
 	# 3. Jalankan AI Loadout
 	var mc_elem := str(mc_loadout.get("element", "Fire"))
@@ -66,22 +66,37 @@ func _set_map_background() -> void:
 func _add_loadout_cards(container: HBoxContainer, loadout: Dictionary) -> void:
 	for category in ["weapon", "armor", "accessory"]:
 		var item: Dictionary = loadout.get(category, {})
-		var item_name := str(item.get("name", "Not selected"))
-		_add_card(container, category.capitalize(), item_name)
+		_add_card(container, category.capitalize(), item)
 
 func _make_stats_text(mc_loadout: Dictionary, npc_loadout: Dictionary) -> String:
 	var mc_stats := _total_stats(mc_loadout, game_state.mc_base_stats)
 	var npc_stats := _total_stats(npc_loadout, game_state.npc_base_stats)
-	return "MC [%s]  ATK %d  |  DEF %d\nNPC [%s]  ATK %d  |  DEF %d" % [
-		str(mc_loadout.get("element", "None")).to_upper(), mc_stats["attack"], mc_stats["defense"],
-		str(npc_loadout.get("element", "None")).to_upper(), npc_stats["attack"], npc_stats["defense"]
+	return "MC [%s]  ATK %d  |  DEF %d  |  HP %d  |  WT %d/%d\nNPC [%s]  ATK %d  |  DEF %d  |  HP %d  |  WT %d/%d" % [
+		str(mc_loadout.get("element", "None")).to_upper(), mc_stats["attack"], mc_stats["defense"], mc_stats["hp"],
+		_loadout_weight(mc_loadout), game_state.MAX_LOADOUT_WEIGHT,
+		str(npc_loadout.get("element", "None")).to_upper(), npc_stats["attack"], npc_stats["defense"],
+		npc_stats["hp"], _loadout_weight(npc_loadout), game_state.MAX_LOADOUT_WEIGHT
 	]
 
+func _loadout_weight(loadout: Dictionary) -> int:
+	var weight := 0
+	for category in ["weapon", "armor", "accessory"]:
+		var item: Dictionary = loadout.get(category, {})
+		weight += int(item.get("weight", 0))
+	return weight
+
 func _total_stats(loadout: Dictionary, base_stats: Dictionary) -> Dictionary:
-	var totals := {"attack": int(base_stats.get("attack", 0)), "defense": int(base_stats.get("defense", 0))}
+	var totals := {
+		"attack": int(base_stats.get("attack", 0)),
+		"defense": int(base_stats.get("defense", 0)),
+		"hp": int(base_stats.get("hp", 100))
+	}
 	var equipment_stats := _equipment_stats(loadout)
 	totals["attack"] += equipment_stats["attack"]
 	totals["defense"] += equipment_stats["defense"]
+	for category in ["weapon", "armor", "accessory"]:
+		var item: Dictionary = loadout.get(category, {})
+		totals["hp"] += int(item.get("hp", 0))
 	return totals
 
 func _equipment_stats(loadout: Dictionary) -> Dictionary:
@@ -95,7 +110,11 @@ func _equipment_stats(loadout: Dictionary) -> Dictionary:
 func _item_stat(item: Dictionary, primary_key: String, fallback_key: String) -> int:
 	return int(item.get(primary_key, item.get(fallback_key, 0)))
 
-func _add_card(container: HBoxContainer, category: String, item_name: String) -> void:
+func _add_card(container: HBoxContainer, category: String, item: Dictionary) -> void:
+	var item_name := str(item.get("name", "Not selected"))
+	var item_slot := VBoxContainer.new()
+	item_slot.alignment = BoxContainer.ALIGNMENT_CENTER
+	item_slot.add_theme_constant_override("separation", 4)
 	var card := PanelContainer.new()
 	card.custom_minimum_size = Vector2(145, 190)
 	var style := StyleBoxFlat.new()
@@ -117,7 +136,14 @@ func _add_card(container: HBoxContainer, category: String, item_name: String) ->
 	if not artwork_path.is_empty():
 		artwork.texture = load(artwork_path)
 	card.add_child(artwork)
-	container.add_child(card)
+	item_slot.add_child(card)
+	var item_details := Label.new()
+	item_details.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	item_details.add_theme_font_size_override("font_size", 14)
+	item_details.add_theme_color_override("font_color", Color("e6ad62"))
+	item_details.text = "Berat: %d" % int(item.get("weight", 0))
+	item_slot.add_child(item_details)
+	container.add_child(item_slot)
 
 func _get_artwork_path(category: String, item_name: String) -> String:
 	var file_name := item_name

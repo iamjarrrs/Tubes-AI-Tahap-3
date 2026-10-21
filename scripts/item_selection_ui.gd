@@ -19,10 +19,19 @@ const ELEMENT_COLORS := {
 
 @onready var card_container: HBoxContainer = $CenterContainer/PanelContainer/Content/ItemCards
 @onready var game_state: Node = get_node("/root/GameState")
+var weight_summary: Label
 
 func _ready() -> void:
-	$CenterContainer/PanelContainer/Content/Title.text = title_text
+	var content: VBoxContainer = $CenterContainer/PanelContainer/Content
+	content.get_node("Title").text = title_text
+	weight_summary = Label.new()
+	weight_summary.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	weight_summary.add_theme_font_size_override("font_size", 17)
+	weight_summary.add_theme_color_override("font_color", Color("e6ad62"))
+	content.add_child(weight_summary)
+	content.move_child(weight_summary, 1)
 	_set_map_background()
+	_update_weight_summary()
 	for index in range(item_names.size()):
 		_add_item_card(item_names[index], index)
 
@@ -36,10 +45,15 @@ func _set_map_background() -> void:
 	$MapBackground.texture = load(background_path)
 
 func _add_item_card(item_name: String, index: int) -> void:
+	var item_data := _make_item_data(item_name)
 	var button := Button.new()
 	button.name = item_name.replace(" ", "")
 	button.custom_minimum_size = Vector2(210, 280)
 	button.pivot_offset = button.custom_minimum_size / 2.0
+	var projected_weight := _current_loadout_weight(category) + int(item_data.get("weight", 0))
+	button.disabled = projected_weight > game_state.MAX_LOADOUT_WEIGHT
+	if button.disabled:
+		button.tooltip_text = "Melebihi batas bobot %d." % game_state.MAX_LOADOUT_WEIGHT
 	var accent: Color = _get_item_color(item_name)
 	var normal := StyleBoxFlat.new()
 	normal.bg_color = Color("11191b", 1.0)
@@ -82,10 +96,18 @@ func _add_item_card(item_name: String, index: int) -> void:
 	button.mouse_entered.connect(_on_card_hovered.bind(button, true))
 	button.mouse_exited.connect(_on_card_hovered.bind(button, false))
 	button.pressed.connect(_on_item_selected.bind(item_name))
-	var card_slot := Control.new()
-	card_slot.custom_minimum_size = button.custom_minimum_size
+	var card_slot := VBoxContainer.new()
+	card_slot.custom_minimum_size = Vector2(button.custom_minimum_size.x, button.custom_minimum_size.y + 28.0)
+	card_slot.alignment = BoxContainer.ALIGNMENT_CENTER
+	card_slot.add_theme_constant_override("separation", 4)
 	button.size = button.custom_minimum_size
 	card_slot.add_child(button)
+	var item_details := Label.new()
+	item_details.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	item_details.add_theme_font_size_override("font_size", 15)
+	item_details.add_theme_color_override("font_color", Color("e6ad62") if not button.disabled else Color("c66b5d"))
+	item_details.text = "Berat: %d" % int(item_data.get("weight", 0))
+	card_slot.add_child(item_details)
 	card_container.add_child(card_slot)
 	_animate_card_entry(button, index)
 
@@ -125,7 +147,10 @@ func _on_card_hovered(button: Button, is_hovered: bool) -> void:
 
 func _on_item_selected(item_name: String) -> void:
 	var loadout: Dictionary = game_state.get("mc_loadout")
-	loadout[category] = _make_item_data(item_name)
+	var selected_item := _make_item_data(item_name)
+	if _current_loadout_weight(category) + int(selected_item.get("weight", 0)) > game_state.MAX_LOADOUT_WEIGHT:
+		return
+	loadout[category] = selected_item
 	game_state.set("mc_loadout", loadout)
 
 	if category == "accessory":
@@ -134,8 +159,23 @@ func _on_item_selected(item_name: String) -> void:
 	var next_scene_path: String = NEXT_SCENES[category]
 	game_state.call("replace_draft_ui", self, next_scene_path)
 
+func _current_loadout_weight(excluded_category: String = "") -> int:
+	var loadout: Dictionary = game_state.get("mc_loadout")
+	var total_weight := 0
+	for item_category in ["weapon", "armor", "accessory"]:
+		if item_category == excluded_category:
+			continue
+		var item: Dictionary = loadout.get(item_category, {})
+		total_weight += int(item.get("weight", 0))
+	return total_weight
+
+func _update_weight_summary() -> void:
+	weight_summary.text = "Bobot terpasang: %d / %d" % [
+		_current_loadout_weight(), game_state.MAX_LOADOUT_WEIGHT
+	]
+
 func _make_item_data(item_name: String) -> Dictionary:
 	for item in game_state.call("get_item_catalog", category):
 		if item["name"] == item_name:
 			return item.duplicate(true)
-	return {"name": item_name, "atk": 0, "power": 0, "def": 0, "defense": 0, "weight": 0, "element": "Neutral"}
+	return {"name": item_name, "atk": 0, "power": 0, "def": 0, "defense": 0, "weight": 0, "hp": 0, "element": "Neutral"}

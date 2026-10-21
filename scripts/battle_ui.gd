@@ -1,15 +1,22 @@
 extends CanvasLayer
 
-const MAX_HP := 120
+const BASE_HP := 100
 const SUPER_EFFECTIVE := 1.25
 const NOT_VERY_EFFECTIVE := 0.85
+const MINIMAX_DEPTH := 2
+const HEAL_AMOUNT := 25
+const MAX_HEALS := 2
 
 var game_state: Node
-var mc_hp := MAX_HP
-var npc_hp := MAX_HP
+var mc_hp := BASE_HP
+var npc_hp := BASE_HP
+var mc_max_hp := BASE_HP
+var npc_max_hp := BASE_HP
 var mc_stats: Dictionary = {}
 var npc_stats: Dictionary = {}
 var guarding := false
+var npc_guarding := false
+var heals_used := 0
 var turn_locked := false
 var rng := RandomNumberGenerator.new()
 
@@ -24,6 +31,7 @@ var result_row: HBoxContainer
 var result_label: Label
 var attack_button: Button
 var guard_button: Button
+var heal_button: Button
 
 func _ready() -> void:
 	layer = 230
@@ -33,6 +41,10 @@ func _ready() -> void:
 	var npc_loadout: Dictionary = game_state.npc_loadout
 	mc_stats = _total_stats(mc_loadout, game_state.mc_base_stats)
 	npc_stats = _total_stats(npc_loadout, game_state.npc_base_stats)
+	mc_max_hp = int(mc_stats["hp"])
+	npc_max_hp = int(npc_stats["hp"])
+	mc_hp = mc_max_hp
+	npc_hp = npc_max_hp
 	_build_ui(mc_loadout, npc_loadout)
 	_refresh_health()
 	status_label.text = "Giliran MC. Pilih serang atau bertahan."
@@ -100,6 +112,9 @@ func _build_ui(mc_loadout: Dictionary, npc_loadout: Dictionary) -> void:
 	guard_button = _button("Bertahan", Color("4b91a0"))
 	guard_button.pressed.connect(_on_guard_pressed)
 	action_row.add_child(guard_button)
+	heal_button = _button("Heal (%d)" % MAX_HEALS, Color("4c9b79"))
+	heal_button.pressed.connect(_on_heal_pressed)
+	action_row.add_child(heal_button)
 
 	result_label = _label("", 25, Color("f0e9d2"))
 	result_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -131,17 +146,22 @@ func _fighter_panel(fighter_name: String, loadout: Dictionary, stats: Dictionary
 	var item_names: Array[String] = []
 	for category in ["weapon", "armor", "accessory"]:
 		var item: Dictionary = loadout.get(category, {})
-		item_names.append(str(item.get("name", "None")))
+		var item_description := str(item.get("name", "None"))
+		var reduction := int(item.get("damage_reduction", 0))
+		if reduction > 0:
+			item_description += " (-%d%% damage)" % reduction
+		item_names.append(item_description)
 	var equipment := _label("%s\n%s\n%s" % item_names, 13, Color("ccd1ca"))
 	equipment.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	content.add_child(equipment)
-	var hp_text := _label("HP %d / %d" % [MAX_HP, MAX_HP], 15, Color("e7e8df"))
+	var max_hp := mc_max_hp if is_mc else npc_max_hp
+	var hp_text := _label("HP %d / %d" % [max_hp, max_hp], 15, Color("e7e8df"))
 	hp_text.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	content.add_child(hp_text)
 	var hp_bar := ProgressBar.new()
 	hp_bar.min_value = 0
-	hp_bar.max_value = MAX_HP
-	hp_bar.value = MAX_HP
+	hp_bar.max_value = max_hp
+	hp_bar.value = max_hp
 	hp_bar.show_percentage = false
 	hp_bar.custom_minimum_size = Vector2(0.0, 16.0)
 	content.add_child(hp_bar)
@@ -162,13 +182,16 @@ func _on_attack_pressed() -> void:
 	turn_locked = true
 	_set_actions_enabled(false)
 	var damage := _calculate_damage(mc_stats, npc_stats, "mc")
+	if npc_guarding:
+		damage = maxi(1, ceili(float(damage) * 0.5))
+		npc_guarding = false
 	npc_hp = maxi(0, npc_hp - damage)
 	_refresh_health()
 	log_label.text = "MC menyerang dan memberi %d damage." % damage
 	if npc_hp <= 0:
 		_finish_battle(true)
 		return
-	await _npc_turn()
+	_start_npc_turn()
 
 func _on_guard_pressed() -> void:
 	if turn_locked or _battle_finished():
@@ -177,20 +200,43 @@ func _on_guard_pressed() -> void:
 	guarding = true
 	_set_actions_enabled(false)
 	log_label.text = "MC bersiap bertahan. Damage serangan NPC berikutnya berkurang 50%."
-	await _npc_turn()
+	_start_npc_turn()
 
-func _npc_turn() -> void:
-	status_label.text = "Giliran NPC..."
-	await get_tree().create_timer(0.7).timeout
+func _on_heal_pressed() -> void:
+	if turn_locked or _battle_finished() or heals_used >= MAX_HEALS or mc_hp >= mc_max_hp:
+		return
+	turn_locked = true
+	_set_actions_enabled(false)
+	var recovered := mini(HEAL_AMOUNT, mc_max_hp - mc_hp)
+	mc_hp += recovered
+	heals_used += 1
+	_refresh_health()
+	log_label.text = "MC memulihkan %d HP. Heal tersisa: %d." % [recovered, MAX_HEALS - heals_used]
+	_start_npc_turn()
+
+func _start_npc_turn() -> void:
+	var npc_action := _choose_npc_action_minimax()
+	status_label.text = "NPC memakai Minimax (depth %d)..." % MINIMAX_DEPTH
+	var turn_timer := get_tree().create_timer(0.7)
+	turn_timer.timeout.connect(_resolve_npc_turn.bind(npc_action), CONNECT_ONE_SHOT)
+
+func _resolve_npc_turn(npc_action: String) -> void:
 	if not is_instance_valid(self):
 		return
+	if npc_action == "guard":
+		npc_guarding = true
 	var damage := _calculate_damage(npc_stats, mc_stats, "npc")
+	if npc_action == "guard":
+		damage = maxi(1, roundi(float(damage) * 0.65))
 	if guarding:
 		damage = maxi(1, ceili(float(damage) * 0.5))
 		guarding = false
 	mc_hp = maxi(0, mc_hp - damage)
 	_refresh_health()
-	log_label.text += "\nNPC membalas dan memberi %d damage." % damage
+	if npc_action == "guard":
+		log_label.text += "\nNPC mengambil stance bertahan sambil counter, memberi %d damage." % damage
+	else:
+		log_label.text += "\nNPC menyerang dan memberi %d damage." % damage
 	if mc_hp <= 0:
 		_finish_battle(false)
 		return
@@ -198,12 +244,76 @@ func _npc_turn() -> void:
 	turn_locked = false
 	_set_actions_enabled(true)
 
+func _choose_npc_action_minimax() -> String:
+	var best_action := "attack"
+	var best_score := -INF
+	var attack_score := _minimax_value(mc_hp, npc_hp, MINIMAX_DEPTH, true, guarding, npc_guarding, "attack")
+	if attack_score > best_score:
+		best_score = attack_score
+	var guard_score := _minimax_value(mc_hp, npc_hp, MINIMAX_DEPTH, true, guarding, npc_guarding, "guard")
+	if guard_score > best_score:
+		best_action = "guard"
+	return best_action
+
+func _minimax_value(mc_health: int, npc_health: int, depth: int, npc_turn: bool, mc_guard: bool, npc_guard: bool, forced_npc_action: String = "") -> float:
+	if depth <= 0 or mc_health <= 0 or npc_health <= 0:
+		return _evaluate_battle_state(mc_health, npc_health, mc_guard, npc_guard)
+	if npc_turn:
+		var npc_best_score := -INF
+		var actions: Array[String] = []
+		if forced_npc_action.is_empty():
+			actions.append_array(["attack", "guard"])
+		else:
+			actions.append(forced_npc_action)
+		for action in actions:
+			if action == "attack":
+				var damage := _estimated_damage(npc_stats, mc_stats, "npc")
+				if mc_guard:
+					damage = maxi(1, ceili(float(damage) * 0.5))
+				npc_best_score = maxf(npc_best_score, _minimax_value(mc_health - damage, npc_health, depth - 1, false, false, npc_guard))
+			else:
+				var counter_damage := maxi(1, roundi(float(_estimated_damage(npc_stats, mc_stats, "npc")) * 0.65))
+				if mc_guard:
+					counter_damage = maxi(1, ceili(float(counter_damage) * 0.5))
+				npc_best_score = maxf(npc_best_score, _minimax_value(mc_health - counter_damage, npc_health, depth - 1, false, false, true))
+		return npc_best_score
+	var mc_best_score := INF
+	for action in ["attack", "guard"]:
+		if action == "attack":
+			var damage := _estimated_damage(mc_stats, npc_stats, "mc")
+			if npc_guard:
+				damage = maxi(1, ceili(float(damage) * 0.5))
+			mc_best_score = minf(mc_best_score, _minimax_value(mc_health, npc_health - damage, depth - 1, true, mc_guard, false))
+		else:
+			mc_best_score = minf(mc_best_score, _minimax_value(mc_health, npc_health, depth - 1, true, true, npc_guard))
+	return mc_best_score
+
+func _evaluate_battle_state(mc_health: int, npc_health: int, mc_guard: bool, npc_guard: bool) -> float:
+	var score := float(npc_health - mc_health)
+	if mc_guard:
+		score -= float(_estimated_damage(npc_stats, mc_stats, "npc")) * 0.5
+	if npc_guard:
+		score += float(_estimated_damage(mc_stats, npc_stats, "mc")) * 0.5
+	return score
+
+func _estimated_damage(attacker: Dictionary, defender: Dictionary, side: String) -> int:
+	var attacker_loadout: Dictionary = game_state.mc_loadout if side == "mc" else game_state.npc_loadout
+	var defender_loadout: Dictionary = game_state.npc_loadout if side == "mc" else game_state.mc_loadout
+	var multiplier := _element_multiplier(str(attacker_loadout.get("element", "")), str(defender_loadout.get("element", "")))
+	var raw_damage := maxf(3.0, float(attacker["attack"]) * multiplier - float(defender["defense"]) * 0.5)
+	return maxi(1, roundi(raw_damage * (1.0 - _damage_reduction(defender_loadout) / 100.0)))
+
 func _calculate_damage(attacker: Dictionary, defender: Dictionary, side: String) -> int:
 	var attacker_loadout: Dictionary = game_state.mc_loadout if side == "mc" else game_state.npc_loadout
 	var defender_loadout: Dictionary = game_state.npc_loadout if side == "mc" else game_state.mc_loadout
 	var multiplier := _element_multiplier(str(attacker_loadout.get("element", "")), str(defender_loadout.get("element", "")))
-	var raw_damage := float(attacker["attack"]) * multiplier - float(defender["defense"]) * 0.5
-	return maxi(3, roundi(raw_damage * rng.randf_range(0.9, 1.1)))
+	var raw_damage := maxf(3.0, float(attacker["attack"]) * multiplier - float(defender["defense"]) * 0.5)
+	var reduced_damage := raw_damage * (1.0 - _damage_reduction(defender_loadout) / 100.0)
+	return maxi(1, roundi(reduced_damage * rng.randf_range(0.9, 1.1)))
+
+func _damage_reduction(loadout: Dictionary) -> float:
+	var accessory: Dictionary = loadout.get("accessory", {})
+	return clampf(float(accessory.get("damage_reduction", 0)), 0.0, 75.0)
 
 func _element_multiplier(attacker_element: String, defender_element: String) -> float:
 	if (attacker_element == "Fire" and defender_element == "Nature") or (attacker_element == "Nature" and defender_element == "Water") or (attacker_element == "Water" and defender_element == "Fire"):
@@ -223,9 +333,11 @@ func _finish_battle(mc_won: bool) -> void:
 	log_label.text += "\n%s." % ("NPC kehabisan HP" if mc_won else "MC kehabisan HP")
 
 func _on_rematch_pressed() -> void:
-	mc_hp = MAX_HP
-	npc_hp = MAX_HP
+	mc_hp = mc_max_hp
+	npc_hp = npc_max_hp
 	guarding = false
+	npc_guarding = false
+	heals_used = 0
 	turn_locked = false
 	result_label.visible = false
 	result_row.visible = false
@@ -250,24 +362,33 @@ func _on_return_pressed() -> void:
 func _refresh_health() -> void:
 	if is_instance_valid(mc_hp_bar):
 		mc_hp_bar.value = mc_hp
-		mc_hp_text.text = "HP %d / %d" % [mc_hp, MAX_HP]
+		mc_hp_text.text = "HP %d / %d" % [mc_hp, mc_max_hp]
 	if is_instance_valid(npc_hp_bar):
 		npc_hp_bar.value = npc_hp
-		npc_hp_text.text = "HP %d / %d" % [npc_hp, MAX_HP]
+		npc_hp_text.text = "HP %d / %d" % [npc_hp, npc_max_hp]
 
 func _set_actions_enabled(enabled: bool) -> void:
 	attack_button.disabled = not enabled
 	guard_button.disabled = not enabled
+	heal_button.disabled = not enabled or heals_used >= MAX_HEALS or mc_hp >= mc_max_hp
+	heal_button.text = "Heal (%d)" % (MAX_HEALS - heals_used)
 
 func _battle_finished() -> bool:
 	return mc_hp <= 0 or npc_hp <= 0
 
 func _total_stats(loadout: Dictionary, base_stats: Dictionary) -> Dictionary:
-	var totals := {"attack": int(base_stats.get("attack", 0)), "defense": int(base_stats.get("defense", 0))}
+	var totals := {
+		"attack": int(base_stats.get("attack", 0)),
+		"defense": int(base_stats.get("defense", 0)),
+		"hp": int(base_stats.get("hp", BASE_HP)),
+		"damage_reduction": 0
+	}
 	for category in ["weapon", "armor", "accessory"]:
 		var item: Dictionary = loadout.get(category, {})
 		totals["attack"] += int(item.get("atk", item.get("power", 0)))
 		totals["defense"] += int(item.get("def", item.get("defense", 0)))
+		totals["hp"] += int(item.get("hp", 0))
+		totals["damage_reduction"] += int(item.get("damage_reduction", 0))
 	return totals
 
 func _map_texture() -> Texture2D:
